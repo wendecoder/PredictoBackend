@@ -13,15 +13,91 @@ from keras.models import load_model
 import matplotlib.pyplot as plt
 import cv2
 import nltk
+import tensorflow_hub as hub
 from keras.applications.inception_v3 import InceptionV3, preprocess_input, decode_predictions
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from tensorflow_hub import KerasLayer
+
+from predictoBackend.settings import BASE_DIR
 nltk.download('vader_lexicon')
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
+import requests
 
 
-# Load the pre-trained InceptionV3 model (you can choose a different model if needed)
+
+# Global variable to store downloaded model paths
+downloaded_models = {}
+
+# Define the download path for the service account key file
+service_account_key_path = 'predicto_models_account_key.json'
+
+# Service account credentials file id
+credentials_id = os.environ.get("CREDENTIALS_ID")
+
+# Construct the file's download URL using the file ID
+credentials_url = f'https://drive.google.com/uc?export=download&id={credentials_id}'
+
+# Download the JSON key file from Google Drive
+if not os.path.exists(service_account_key_path):
+    with open(service_account_key_path, 'wb') as f:
+        response = requests.get(credentials_url)
+        f.write(response.content)
+
+# Load the service account credentials
+credentials = service_account.Credentials.from_service_account_file(
+    service_account_key_path,
+    scopes=['https://www.googleapis.com/auth/drive.readonly']
+)
+
+# Function to download or retrieve the model
+def download_model_from_drive(file_id, file_name):
+    # Check if the model is already downloaded
+    if file_name in downloaded_models:
+        return downloaded_models[file_name]
+
+    drive_service = build('drive', 'v3', credentials=credentials)
+
+    # Define the local directory where models will be stored
+    local_dir = 'models'
+
+    # Create the local directory if it doesn't exist
+    os.makedirs(local_dir, exist_ok=True)
+
+    # Define the local file path    
+    local_path = os.path.join(local_dir, file_name)
+
+    # Check if the model already exists
+    if os.path.exists(local_path):
+        downloaded_models[file_name] = local_path
+        return local_path
+
+    # Get the file's metadata to retrieve the file size
+    # file_metadata = drive_service.files().get(fileId=file_id).execute()
+    # file_size = int(file_metadata.get('size'))
+
+    # Request the file's media and download it with a progress indicator
+    request = drive_service.files().get_media(fileId=file_id)
+    with open(local_path, 'wb') as f:
+        downloader = MediaIoBaseDownload(f, request, chunksize=1024 * 1024)
+
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            if status:
+                print(f"Download Progress: {int(status.progress() * 100)}%")
+
+    downloaded_models[file_name] = local_path
+    return local_path
+
+
+# Load the pre-trained model
 def load_classification_model():
-    model = load_model(r"C:\Users\Administrator\Downloads\Compressed\out\best_model.h5")
+    model_id = os.environ.get("CLASSIFIER_MODEL_ID")  # Replace with the actual file ID of your model
+    model_name = 'best_model.h5'
+    model_path = download_model_from_drive(model_id, model_name)
+    model = load_model(model_path)
     return model
 
 # Function to classify an image
@@ -53,8 +129,6 @@ def classify_image(imageFile):
 # Load the pre-trained VGG16 model
 animal_model = InceptionV3(weights='imagenet')
 
-# Path to the downloaded model directory on your local computer
-model_path = r"C:\Users\Administrator\Documents\uninversal"
 
 # Define a dictionary to map label numbers to label names
 Input_label_names = {
@@ -82,8 +156,10 @@ SC_label_names = {
     7: 'SCC(Squamous cell carcinoma (Cancerous))',    # Squamous cell carcinoma (Cancerous)
     8: 'UNK(Unknown (Uncertain cancerousness))'     # Unknown (Uncertain cancerousness)
 }
-# Load the model using TensorFlow Hub
-use_model = tf.saved_model.load(model_path)
+
+# Universal sentence encoder model
+use_model_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
+use_model = hub.load(use_model_url)
 
 # ImageNet class ID range for animal categories
 animal_class_id_prefix = "n0"
@@ -92,7 +168,7 @@ animal_class_id_end = 2617172
 
 def getDatasetAndEmbeddings():
     # Define the path to the text file containing AI-related sentences
-    file_path = r"C:\Users\Administrator\Documents\semanticDataset.txt"
+    file_path = BASE_DIR / "semanticDataset.txt"
 
     # Read sentences from the text file
     with open(file_path, "r", encoding="utf-8") as file:
@@ -102,10 +178,12 @@ def getDatasetAndEmbeddings():
     dataset = [sentence.strip() for sentence in dataset]
 
     # Load the embedded sentence
-    loaded_embeddings = np.load(r"C:\Users\Administrator\Desktop\Icog Project\predictochain\predictoBackend\sentence_embeddings.model.npy")
+    loaded_embeddings = BASE_DIR / "sentence_embeddings.model.npy"
     
     return dataset, loaded_embeddings
 
+def deployment_success(request):
+    return JsonResponse({'message': 'Backend deployed successfully on Vercel!'})
 
 @csrf_exempt
 def aniclassify(request):
@@ -212,7 +290,9 @@ def medicognize(request):
             retina_image_classification = classify_image(imageFile)  # Implement this function to classify the image
             if retina_image_classification != 'Retina':
                 return JsonResponse({"error": "Invalid image for Diabetic Retinopathy Detection"})
-            model = load_model(r"C:\Users\Administrator\Documents\best_model.h5")
+            model_id = os.environ.get("RETINOPATHY_MODEL_ID")
+            model_path = download_model_from_drive(model_id, 'retinopathy_model')
+            model = load_model(model_path)
             if imageFile:
                 # Read the image data from the InMemoryUploadedFile
                 image_data = imageFile.read()
@@ -265,7 +345,9 @@ def medicognize(request):
             skin_lesion_classification = classify_image(imageFile)  # Implement this function to classify the image
             if skin_lesion_classification != 'Skin':
                 return JsonResponse({"error": "Invalid image for Skin Cancer Detection"})
-            model = load_model(r"D:\skin_cancer_best_model.h5")
+            model_id = os.environ.get("SKIN_CANCER_MODEL_ID")
+            model_path = download_model_from_drive(model_id, 'skin_cancer_model')
+            model = load_model(model_path)
             if imageFile:
                 # Read the image data from the InMemoryUploadedFile
                 image_data = imageFile.read()
