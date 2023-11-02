@@ -158,9 +158,9 @@ SC_label_names = {
 }
 
 # Universal sentence encoder model
-print("downloading universal sentence encoder model")
-use_model_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-use_model = hub.load(use_model_url)
+# print("downloading universal sentence encoder model")
+# use_model_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
+# use_model = hub.load(use_model_url)
 
 # ImageNet class ID range for animal categories
 animal_class_id_prefix = "n0"
@@ -247,35 +247,35 @@ def sentix(request):
 
     return JsonResponse({'error': 'Invalid request method'})
 
-@csrf_exempt
-def semanticSearch(request):
-    print("got inside semantic search endpoint")
-    if request.method == 'POST':
-        print("yes the method is post")
-        user_query = request.POST.get('text', '')
-        if user_query:
-            # Preprocess user query and encode it into an embedding
-            query_embedding = use_model([user_query])[0]
-            dataset, loaded_embeddings = getDatasetAndEmbeddings()
+# @csrf_exempt
+# def semanticSearch(request):
+#     print("got inside semantic search endpoint")
+#     if request.method == 'POST':
+#         print("yes the method is post")
+#         user_query = request.POST.get('text', '')
+#         if user_query:
+#             # Preprocess user query and encode it into an embedding
+#             query_embedding = use_model([user_query])[0]
+#             dataset, loaded_embeddings = getDatasetAndEmbeddings()
 
-            # Calculate cosine similarity between query embedding and loaded embeddings
-            similarity_scores = cosine_similarity([query_embedding], loaded_embeddings)[0]
+#             # Calculate cosine similarity between query embedding and loaded embeddings
+#             similarity_scores = cosine_similarity([query_embedding], loaded_embeddings)[0]
 
-            # Combine the sentences and similarity scores
-            ranked_sentences = sorted(zip(dataset, similarity_scores), key=lambda x: x[1], reverse=True)
+#             # Combine the sentences and similarity scores
+#             ranked_sentences = sorted(zip(dataset, similarity_scores), key=lambda x: x[1], reverse=True)
 
-            # Prepare response data
-            response_data = [
-                {"sentence": sentence, "similarity_score": score.item()} for sentence, score in ranked_sentences[:5]
-            ]
-            print(response_data)
+#             # Prepare response data
+#             response_data = [
+#                 {"sentence": sentence, "similarity_score": score.item()} for sentence, score in ranked_sentences[:5]
+#             ]
+#             print(response_data)
 
-            return JsonResponse({"results": response_data})
-        else:
-            print("no user query received")
-            return JsonResponse({"error": "No query provided"})
+#             return JsonResponse({"results": response_data})
+#         else:
+#             print("no user query received")
+#             return JsonResponse({"error": "No query provided"})
 
-    return JsonResponse({"error": "Invalid request method"})
+#     return JsonResponse({"error": "Invalid request method"})
 
 @csrf_exempt
 def medicognize(request):
