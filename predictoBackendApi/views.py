@@ -158,6 +158,7 @@ SC_label_names = {
 }
 
 # Universal sentence encoder model
+print("downloading universal sentence encoder model")
 use_model_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
 use_model = hub.load(use_model_url)
 
