@@ -35,9 +35,11 @@ service_account_key_path = 'predicto_models_account_key.json'
 
 # Service account credentials file id
 credentials_id = os.environ.get("CREDENTIALS_ID")
+print(credentials_id)
 
 # Construct the file's download URL using the file ID
 credentials_url = f'https://drive.google.com/uc?export=download&id={credentials_id}'
+print(credentials_url)
 
 # Download the JSON key file from Google Drive
 if not os.path.exists(service_account_key_path):
@@ -183,8 +185,9 @@ def getDatasetAndEmbeddings():
     
     return dataset, loaded_embeddings
 
+@csrf_exempt
 def deployment_success(request):
-    return JsonResponse({'message': 'Backend deployed successfully on Vercel!'})
+    return JsonResponse({'message': 'Backend deployed successfully on Render!'})
 
 @csrf_exempt
 def aniclassify(request):
