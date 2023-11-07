@@ -20,9 +20,9 @@ from predictoBackendApi import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # path('classify/', views.aniclassify, name='aniclassify'),
-    # path('sentix/', views.sentix, name='sentix'),
-    # path('semsearch/', views.semanticSearch, name='semanticSearch'),
-    # path('medicognize/', views.medicognize, name='medicognize'),
+    path('classify/', views.aniclassify, name='aniclassify'),
+    path('sentix/', views.sentix, name='sentix'),
+    path('semsearch/', views.semanticSearch, name='semanticSearch'),
+    path('medicognize/', views.medicognize, name='medicognize'),
     path('deployment-success/', views.deployment_success, name='deployment_success'),
 ]
